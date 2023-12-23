@@ -1,10 +1,9 @@
 <script lang="ts">
-  import svelteLogo from "./assets/svelte.svg";
-  import viteLogo from "/vite.svg";
-  import Counter from "./lib/Counter.svelte";
+  import recordIcon from "/record.svg";
   import * as ZX from "@zxing/library";
   import { onMount } from "svelte";
   import { writable, type Writable } from "svelte/store";
+  import {decodeDigiKeyCode} from './lib/DigiKeyDecoder';
 
   const codeReader = new ZX.BrowserMultiFormatReader();
   let cameraDevices: Writable<MediaDeviceInfo[]> = writable([]);
@@ -13,27 +12,13 @@
 
   let videoElement: HTMLVideoElement;
 
-  function askPermission() {
-    //add constraints object
-    var constraints = {
-      audio: true,
-      video: true,
-    };
-
-    //call getUserMedia
-    navigator.mediaDevices
-      .getUserMedia(constraints)
-      .then(function (mediaStream) {})
-      .catch(function (err) {
-        console.log("There's an error!" + err.message);
-      });
-  }
-
   async function initializeApp() {
-    console.log("INIT");
-    const devices = await codeReader.listVideoInputDevices();
-    cameraDevices.set(devices);
-    console.log(devices);
+    $cameraDevices = await codeReader.listVideoInputDevices();
+
+    // Voluntarily set some device
+    if ($cameraDevices.length > 0) {
+      selectedCameraID = $cameraDevices[0].deviceId;
+    }
   }
 
   function stopCapture() {
@@ -47,8 +32,13 @@
       videoElement,
       (result, err) => {
         if (result) {
-          foundData = result.getText().replaceAll();
+          foundData = result.getText();
           console.log(foundData);
+          console.log(decodeDigiKeyCode(foundData));
+
+          // Send data to PartDB, open modal, etc..
+
+          // ..
           codeReader.reset();
         }
         if (err && !(err instanceof ZX.NotFoundException)) {
@@ -67,6 +57,20 @@
   <video bind:this={videoElement}></video>
   {#if videoElement}
     <div class="controls">
+      {#if !codeReader.isVideoPlaying(videoElement)}
+      <div>
+        <button on:click={() => startCapture()} type="submit">
+          <!-- svelte-ignore a11y-missing-attribute -->
+          <img class="capture_icon" src={recordIcon}  />
+        </button>
+      </div>
+      {:else}
+        <button on:click={() => stopCapture()}>Stop Capture</button>
+      {/if}
+      {#if foundData.length > 0}
+        {foundData}
+      {/if}
+
       <select
         bind:value={selectedCameraID}
         on:change={() => console.log(selectedCameraID)}
@@ -82,14 +86,7 @@
         {/each}
       </select>
 
-      {#if !codeReader.isVideoPlaying(videoElement)}
-        <button on:click={() => startCapture()}>Start Capture</button>
-      {:else}
-        <button on:click={() => stopCapture()}>Stop Capture</button>
-      {/if}
-      {#if foundData.length > 0}
-        {foundData}
-      {/if}
+
     </div>
   {/if}
 </main>
@@ -99,10 +96,12 @@
     position: absolute;
     bottom: 0;
     left: 0;
-    right: 100%;
-    width: 100%;
+    right: 0;
+    
     display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
   }
 
   video {
@@ -114,5 +113,14 @@
     margin: 0;
     width: 100%;
     height: 100%;
+  }
+
+  select {
+    margin: 15px;
+  }
+
+  .capture_icon {
+    width: 20vw;
+    height: 20vw;
   }
 </style>

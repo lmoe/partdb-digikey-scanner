@@ -47,8 +47,8 @@
       videoElement,
       (result, err) => {
         if (result) {
-          console.log(result);
-          foundData = result.getText();
+          foundData = result.getText().replaceAll();
+          console.log(foundData);
           codeReader.reset();
         }
         if (err && !(err instanceof ZX.NotFoundException)) {
